@@ -89,6 +89,8 @@ endif()
 # path to third_party/zlib/zlib.h
 add_relative_include_dir(${STATIC_LIB_NAME} PUBLIC PUBLIC "chromium")
 
+add_relative_include_dir(${STATIC_LIB_NAME} PUBLIC PUBLIC "chromium/third_party")
+
 add_relative_include_dir(${STATIC_LIB_NAME} PUBLIC PUBLIC "chromium/third_party/zlib")
 
 #if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/chromium/build/build_config.h")

@@ -13,7 +13,8 @@
  * sets up export macros in component builds. */
 #include "chromeconf.h"
 #else
-//#define Z_PREFIX 1
+//__TODO__
+#define Z_PREFIX 1
 #endif
 
 /*
