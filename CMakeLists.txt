@@ -114,6 +114,13 @@ add_relative_include_dir(${STATIC_LIB_NAME} PUBLIC PUBLIC "chromium/third_party/
 
 set_property(TARGET ${STATIC_LIB_NAME} PROPERTY CXX_STANDARD 17)
 
+# POSITION_INDEPENDENT_CODE for -fPIC
+# -fPIC may be used to link static library into dynamic one
+# Position-independent code requires special support,
+# and therefore works only on certain machines.
+# see https://akkadia.org/drepper/dsohowto.pdf
+set_property(TARGET ${STATIC_LIB_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
   ZLIB_IMPLEMENTATION=1
   #"ADLER32_SIMD_SSSE3",
