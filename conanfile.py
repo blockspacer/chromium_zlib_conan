@@ -50,8 +50,7 @@ class chromium_zlib_conan_project(conan_build_helper.CMakePackage):
       "enable_msan": [True, False],
       "enable_tsan": [True, False],
       "shared": [True, False],
-      "debug": [True, False],
-      "enable_sanitizers": [True, False]
+      "debug": [True, False]
     }
 
     default_options = (
@@ -61,7 +60,6 @@ class chromium_zlib_conan_project(conan_build_helper.CMakePackage):
       "enable_tsan=False",
       "shared=False",
       "debug=False",
-      "enable_sanitizers=False"
       # build
       #"*:shared=False"
     )
@@ -167,8 +165,6 @@ class chromium_zlib_conan_project(conan_build_helper.CMakePackage):
             value_str = "{}".format(value)
             var_value = "ON" if value_str == 'True' else "OFF" if value_str == 'False' else value_str
             cmake.definitions[var_name] = var_value
-
-        add_cmake_option("ENABLE_SANITIZERS", self.options.enable_sanitizers)
 
         add_cmake_option("ENABLE_TESTS", self._is_tests_enabled())
 
