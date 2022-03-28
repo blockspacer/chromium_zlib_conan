@@ -52,7 +52,7 @@ add_library(GZLIB STATIC
   #zlib
 #)
 
-set_property(TARGET GZLIB PROPERTY CXX_STANDARD 17)
+#set_property(TARGET GZLIB PROPERTY CXX_STANDARD 17)
 
 target_include_directories(GZLIB PRIVATE
   ${GZLIB_DIR}
