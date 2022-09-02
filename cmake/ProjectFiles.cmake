@@ -13,7 +13,7 @@ endif()
 if(TARGET_LINUX OR TARGET_WINDOWS)
   list(APPEND zlib_SOURCES
     # TODO: https://github.com/chromium/chromium/blob/18f14dd8fb096b0b895832a7dbaec02383bdc343/third_party/zlib/BUILD.gn
-    ${zlib_DIR}simd_stub.c
+    simd_stub.c
   )
 elseif(TARGET_EMSCRIPTEN)
   # skip
@@ -22,31 +22,86 @@ else()
 endif()
 
 list(APPEND zlib_SOURCES
-  ${zlib_DIR}adler32.c
-  #${zlib_DIR}chromeconf.h
-  ${zlib_DIR}compress.c
-  ${zlib_DIR}crc32.c
-  #${zlib_DIR}crc32.h
-  ${zlib_DIR}deflate.c
-  #${zlib_DIR}deflate.h
-  ${zlib_DIR}gzclose.c
-  #${zlib_DIR}gzguts.h
-  ${zlib_DIR}gzlib.c
-  ${zlib_DIR}gzread.c
-  ${zlib_DIR}gzwrite.c
-  ${zlib_DIR}infback.c
-  ${zlib_DIR}inffast.c
-  #${zlib_DIR}inffast.h
-  #${zlib_DIR}inffixed.h
-  #${zlib_DIR}inflate.h
-  ${zlib_DIR}inftrees.c
-  #${zlib_DIR}inftrees.h
-  ${zlib_DIR}trees.c
-  #${zlib_DIR}trees.h
-  #${zlib_DIR}uncompr.c
-  ${zlib_DIR}x86.h
-  #${zlib_DIR}zconf.h
-  #${zlib_DIR}zlib.h
-  ${zlib_DIR}zutil.c
-  #${zlib_DIR}zutil.h
+  adler32.c
+  compress.c
+  crc32.c
+  deflate.c
+  gzclose.c
+  gzlib.c
+  gzread.c
+  gzwrite.c
+  infback.c
+  inffast.c
+  inftrees.c
+  trees.c
+  uncompr.c
+  zutil.c
 )
+
+if (use_arm_neon_optimizations)
+  list(APPEND zlib_SOURCES
+    adler32_simd.c
+  )
+endif()
+
+if (use_x86_x64_optimizations) 
+  list(APPEND zlib_SOURCES
+    adler32_simd.c
+  )
+endif()
+
+if (use_arm_neon_optimizations)
+  if (IS_CLANG AND NOT IS_IOS)
+    list(APPEND zlib_SOURCES
+      "arm_features.c"
+      "arm_features.h"
+      "crc32_simd.c"
+      "crc32_simd.h"
+    )
+  endif()
+endif()
+
+if (use_x86_x64_optimizations OR use_arm_neon_optimizations)
+  list(APPEND zlib_SOURCES
+    "contrib/optimizations/chunkcopy.h"
+    "contrib/optimizations/inffast_chunk.c"
+    "contrib/optimizations/inffast_chunk.h"
+    "contrib/optimizations/inflate.c"
+  )
+endif()
+
+if (use_x86_x64_optimizations)
+  list(APPEND zlib_SOURCES
+    "crc32_simd.c"
+    "crc32_simd.h"
+  )
+endif()
+
+if (use_x86_x64_optimizations)
+  list(APPEND zlib_SOURCES
+    "crc_folding.c"
+    "fill_window_sse.c"
+  )
+else()
+  list(APPEND zlib_SOURCES
+    "simd_stub.c"
+  )
+endif()
+
+if (use_x86_x64_optimizations OR use_arm_neon_optimizations)
+  if (use_x86_x64_optimizations)
+    list(APPEND zlib_SOURCES
+      "x86.c"
+    )
+  elseif (use_arm_neon_optimizations)
+    list(APPEND zlib_SOURCES
+      "contrib/optimizations/slide_hash_neon.h"
+    )
+  endif()
+else()
+  list(APPEND zlib_SOURCES
+    "inflate.c"
+  )
+endif()
+
+list(TRANSFORM zlib_SOURCES PREPEND "${zlib_DIR}")

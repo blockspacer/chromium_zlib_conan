@@ -9,9 +9,25 @@ project(${PROJECT_NAME}
   VERSION ${PROJECT_VERSION}
   LANGUAGES CXX C)
 
-set(STATIC_LIB_NAME ${PROJECT_NAME}-static)
+set(STATIC_LIB_NAME ${PROJECT_NAME})
 
 set(zlib_DIR "${CMAKE_CURRENT_SOURCE_DIR}/chromium/third_party/zlib/")
+
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+
+option(arm_use_neon "arm_use_neon" OFF)
+
+set(use_arm_neon_optimizations OFF)
+if (TARGET_ARM OR TARGET_ARM64)
+  if (arm_use_neon)
+    set(use_arm_neon_optimizations ON)
+  endif()
+endif()
+
+set(use_x86_x64_optimizations OFF)
+if ((TARGET_X86 OR TARGET_X86_64) AND NOT TARGET_IOS)
+  set(use_x86_x64_optimizations ON)
+endif()
 
 option(COMPILE_WITH_LLVM_TOOLS
   "Enable clang from llvm_tools (conan package)" OFF)
@@ -200,8 +216,6 @@ add_relative_include_dir(${STATIC_LIB_NAME} PUBLIC PUBLIC "chromium/third_party/
 #  ${build_util_LIB}
 #)
 
-#set_property(TARGET ${STATIC_LIB_NAME} PROPERTY CXX_STANDARD 17)
-
 # POSITION_INDEPENDENT_CODE for -fPIC
 # -fPIC may be used to link static library into dynamic one
 # Position-independent code requires special support,
@@ -283,23 +297,118 @@ else(ENABLE_UBSAN)
     "Disabled ENABLE_UBSAN")
 endif(ENABLE_UBSAN)
 
-target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
-  ZLIB_IMPLEMENTATION=1
-  #"ADLER32_SIMD_SSSE3",
-  #"ADLER32_SIMD_NEON",
-  #-mssse3 # if (use_x86_x64_optimizations)
-  #CRC32_ARMV8_CRC32
-  #ARMV8_OS_ANDROID
-  #ARMV8_OS_LINUX
-  #ARMV8_OS_FUCHSIA
-  #ARMV8_OS_WINDOWS
-  #INFLATE_CHUNK_SIMD_SSE2
-  #INFLATE_CHUNK_READ_64LE
-  #INFLATE_CHUNK_SIMD_NEON
-  #CRC32_SIMD_SSE42_PCLMUL
-  # TODO
-  USE_FILE32API=1 # if (is_mac || is_ios || is_android || is_nacl)
-)
+if (use_x86_x64_optimizations)
+  target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+    ADLER32_SIMD_SSSE3=1
+  )
+endif()
+
+if (use_arm_neon_optimizations)
+  target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+    ADLER32_SIMD_NEON=1
+  )
+endif()
+
+#static_library("minizip") {
+#  sources = [
+#    "contrib/minizip/ioapi.c",
+#    "contrib/minizip/ioapi.h",
+#    "contrib/minizip/iowin32.c",
+#    "contrib/minizip/iowin32.h",
+#    "contrib/minizip/unzip.c",
+#    "contrib/minizip/unzip.h",
+#    "contrib/minizip/zip.c",
+#    "contrib/minizip/zip.h",
+#  ]
+#
+#  if (!is_win) {
+#    sources -= [
+#      "contrib/minizip/iowin32.c",
+#      "contrib/minizip/iowin32.h",
+#    ]
+#  }
+#
+#  if (is_mac || is_ios || is_android || is_nacl) {
+#    # Mac, Android and the BSDs don't have fopen64, ftello64, or fseeko64. We
+#    # use fopen, ftell, and fseek instead on these systems.
+#    defines = [ "USE_FILE32API" ]
+#  }
+#
+#  deps = [
+#    ":zlib",
+#  ]
+#
+#  configs -= [ "//build/config/compiler:chromium_code" ]
+#  configs += [
+#    "//build/config/compiler:no_chromium_code",
+#
+#    # Must be after no_chromium_code for warning flags to be ordered correctly.
+#    ":minizip_warnings",
+#  ]
+#
+#  public_configs = [ ":zlib_config" ]
+#}
+
+if (use_x86_x64_optimizations) 
+  target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+    CRC32_SIMD_SSE42_PCLMUL=1
+  )
+endif()
+
+if (use_x86_x64_optimizations) 
+  if (NOT TARGET_WINDOWS OR COMPILER_IS_CLANG)
+    target_compile_options(${STATIC_LIB_NAME} PRIVATE -mssse3 )
+  endif()
+endif()
+
+if (use_x86_x64_optimizations) 
+  if (NOT TARGET_WINDOWS OR COMPILER_IS_CLANG)
+    target_compile_options(${STATIC_LIB_NAME} PRIVATE -msse4.2 -mpclmul)
+  endif()
+endif()
+
+if (use_arm_neon_optimizations)
+  # Disabled for iPhone, as described in DDI0487C_a_armv8_arm:
+  #  "All implementations of the ARMv8.1 architecture are required to
+  #   implement the CRC32* instructions. These are optional in ARMv8.0."
+  if (NOT TARGET_IOS)
+    target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+      CRC32_ARMV8_CRC32=1)
+  elseif(TARGET_ANDROID)
+    target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+      ARMV8_OS_ANDROID=1)
+  elseif(TARGET_LINUX)
+    target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+      ARMV8_OS_LINUX=1)
+  elseif(TARGET_FUCHSIA)
+    target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+      ARMV8_OS_FUCHSIA=1)
+  elseif(TARGET_WINDOWS)
+    target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+      ARMV8_OS_WINDOWS=1)
+  else()
+    message(FATAL_ERROR "Unsupported ARM OS")
+  endif()
+endif()
+
+if (use_x86_x64_optimizations)
+  target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+    INFLATE_CHUNK_SIMD_SSE2=1)
+
+  if (TARGET_X86_64)
+    target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+      INFLATE_CHUNK_READ_64LE=1)
+  endif()
+endif()
+
+if (use_arm_neon_optimizations)
+  target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+    INFLATE_CHUNK_SIMD_NEON=1)
+  if (TARGET_ARM64)
+    target_compile_definitions(${STATIC_LIB_NAME} PRIVATE
+      INFLATE_CHUNK_READ_64LE=1)
+  endif()
+endif()
 
 if(TARGET_EMSCRIPTEN)
   # use PROPERTY compiler.cppstd
@@ -318,7 +427,7 @@ set_target_properties(${STATIC_LIB_NAME}
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" # TODO: /lib
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" # TODO: /lib
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" # TODO: /bin
-    OUTPUT_NAME "${STATIC_LIB_NAME}$<$<CONFIG:Debug>:${DEBUG_LIBRARY_SUFFIX}>"
+    #OUTPUT_NAME "${STATIC_LIB_NAME}$<$<CONFIG:Debug>:${DEBUG_LIBRARY_SUFFIX}>"
 )
 
 # install and export steps
